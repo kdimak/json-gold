@@ -571,6 +571,7 @@ func (jldp *JsonLdProcessor) Normalize(input interface{}, opts *JsonLdOptions) (
 		toRDFOpts.Format = ""
 		// it's important to pass the original DocumentLoader. The default one will be used otherwise!
 		toRDFOpts.DocumentLoader = opts.DocumentLoader
+		toRDFOpts.JSONCanonicalizer = opts.JSONCanonicalizer
 
 		datasetObj, err := jldp.ToRDF(input, toRDFOpts)
 		if err != nil {

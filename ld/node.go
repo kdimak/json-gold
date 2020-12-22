@@ -228,7 +228,8 @@ func RdfToObject(n Node, useNativeTypes bool) (map[string]interface{}, error) {
 
 // objectToRDF converts a JSON-LD value object to an RDF literal or a JSON-LD string or
 // node object to an RDF resource.
-func objectToRDF(item interface{}, issuer *IdentifierIssuer, graphName string, triples []*Quad) (Node, []*Quad) {
+func objectToRDF(item interface{}, issuer *IdentifierIssuer, graphName string, triples []*Quad,
+	canonicalizer JSONCanonicalizer) (Node, []*Quad) {
 	// convert value object to RDF
 	if IsValue(item) {
 		itemMap := item.(map[string]interface{})
@@ -297,8 +298,16 @@ func objectToRDF(item interface{}, issuer *IdentifierIssuer, graphName string, t
 				if datatype != RDFJSONLiteral {
 					return NewLiteral(value.(string), datatype.(string), ""), triples
 				} else {
-					// TODO: add JSON Canonicalization
-					return NewLiteral("JSON literals not supported", datatype.(string), ""), triples
+					if canonicalizer == nil {
+						return NewLiteral("JSON literals not supported", datatype.(string), ""), triples
+					}
+
+					canonicalJSON, err := canonicalizer.Transform(value)
+					if err != nil {
+						return NewLiteral("JSON Canonicalization error: "+err.Error(), datatype.(string), ""), triples
+					}
+
+					return NewLiteral(canonicalJSON, datatype.(string), ""), triples
 				}
 			}
 		}
@@ -306,7 +315,7 @@ func objectToRDF(item interface{}, issuer *IdentifierIssuer, graphName string, t
 		// if item is a list object, initialize list_results as an empty array,
 		// and object to the result of the List Conversion algorithm, passing
 		// the value associated with the @list key from item and list_results.
-		return parseList(item.(map[string]interface{})["@list"].([]interface{}), issuer, graphName, triples)
+		return parseList(item.(map[string]interface{})["@list"].([]interface{}), issuer, graphName, triples, canonicalizer)
 	} else {
 		// convert string/node object to RDF
 		id := ""
@@ -327,7 +336,8 @@ func objectToRDF(item interface{}, issuer *IdentifierIssuer, graphName string, t
 	}
 }
 
-func parseList(list []interface{}, issuer *IdentifierIssuer, graphName string, triples []*Quad) (Node, []*Quad) {
+func parseList(list []interface{}, issuer *IdentifierIssuer, graphName string, triples []*Quad,
+	canonicalizer JSONCanonicalizer) (Node, []*Quad) {
 
 	var res Node
 	var last interface{}
@@ -343,7 +353,7 @@ func parseList(list []interface{}, issuer *IdentifierIssuer, graphName string, t
 
 	var obj Node
 	for i := 0; i < len(list)-1; i++ {
-		obj, triples = objectToRDF(list[i], issuer, graphName, triples)
+		obj, triples = objectToRDF(list[i], issuer, graphName, triples, canonicalizer)
 		next := NewBlankNode(issuer.GetId(""))
 		triples = append(triples,
 			NewQuad(subj, first, obj, graphName),
@@ -354,7 +364,7 @@ func parseList(list []interface{}, issuer *IdentifierIssuer, graphName string, t
 
 	// tail of list
 	if last != nil {
-		obj, triples = objectToRDF(last, issuer, graphName, triples)
+		obj, triples = objectToRDF(last, issuer, graphName, triples, canonicalizer)
 		triples = append(triples,
 			NewQuad(subj, first, obj, graphName),
 			NewQuad(subj, rest, nilIRI, graphName),

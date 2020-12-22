@@ -60,11 +60,12 @@ type JsonLdOptions struct {
 
 	// The following properties aren't in the spec
 
-	InputFormat   string
-	Format        string
-	Algorithm     string
-	UseNamespaces bool
-	OutputForm    string
+	InputFormat       string
+	Format            string
+	Algorithm         string
+	UseNamespaces     bool
+	OutputForm        string
+	JSONCanonicalizer JSONCanonicalizer
 }
 
 // NewJsonLdOptions creates and returns new instance of JsonLdOptions with the given base.
@@ -113,5 +114,6 @@ func (opt *JsonLdOptions) Copy() *JsonLdOptions {
 		Algorithm:             opt.Algorithm,
 		UseNamespaces:         opt.UseNamespaces,
 		OutputForm:            opt.OutputForm,
+		JSONCanonicalizer:     opt.JSONCanonicalizer,
 	}
 }
